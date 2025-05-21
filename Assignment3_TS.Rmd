@@ -1,0 +1,92 @@
+---
+  title: "Forecasting Artic Sea Ice Levels"
+author: "Charles Galea"
+date: 30 May 2019"
+output:
+  pdf_document: default
+html_document: default
+---
+  
+  ```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Load R packages
+```{r message=FALSE, warning=FALSE}
+rm(list=ls())
+library(TSA)
+library(fUnitRoots)
+library(forecast)
+library(CombMSC)
+library(lmtest)
+library(fGarch)
+```
+
+```{r}
+sort.score <- function(x, score = c("bic", "aic")){
+  if (score == "aic"){
+    x[with(x, order(AIC)),]
+  } else if (score == "bic") {
+    x[with(x, order(BIC)),]
+  } else {
+    warning('score = "x" only accepts valid arguments ("aic","bic")')
+  }
+}
+```
+
+```{r}
+residual.analysis <- function(model, std = TRUE){
+  library(TSA)
+  library(FitAR)
+  if (std == TRUE){
+    res.model = rstandard(model)
+  }else{
+    res.model = residuals(model)
+  }
+  par(mfrow=c(3,2))
+  plot(res.model,type='o',ylab='Standardised residuals', main="Time series plot of standardised residuals")
+  abline(h=0)
+  hist(res.model,main="Histogram of standardised residuals")
+  qqnorm(res.model,main="QQ plot of standardised residuals")
+  qqline(res.model, col = 2)
+  acf(res.model,main="ACF of standardised residuals")
+  print(shapiro.test(res.model))
+  k=0
+  LBQPlot(res.model, lag.max = length(model$residuals)-1 , StartLag = k + 1, k = 0, SquaredQ = FALSE)
+}
+```
+
+# Load data
+```{r}
+ice <- read.csv("sea_ice.csv", header = TRUE)
+```
+
+# Data Pre-processing
+## Convert to time series
+```{r}
+arctic.ts <- ts(ice[,"Arctic"], start = 1990, frequency = 12)
+antarctica.ts <- ts(ice[,"Antarctica"], start = 1990, frequency = 12)
+```
+
+## Plot time series data
+```{r}
+plot(arctic.ts, ylab='Total Ice', xlab = 'Year', type = "o", main = "Arctic Sea Ice")
+```
+
+## Plot time series data
+```{r}
+plot(antarctica.ts, ylab='Total Ice', xlab = 'Year', type = "o", main = "Antarctica Sea Ice")
+```
+
+## Plot time series data
+```{r}
+plot(arctic.ts, ylab='Total Ice', xlab = 'Year', type = "l", main = "Arctic Sea Ice")
+points(y=arctic.ts,x=time(arctic.ts),pch=as.vector(season(arctic.ts)))
+```
+## Plot time series data
+```{r}
+plot(antarctica.ts, ylab='Total Ice', xlab = 'Year', type = "l", main = "Arctic Sea Ice")
+points(y=antarctica.ts,x=time(antarctica.ts),pch=as.vector(season(antarctica.ts)))
+```
+
+
