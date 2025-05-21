@@ -1,0 +1,51 @@
+---
+title: "Untitled"
+author: "s3686502 Dan Enoka"
+date: "28 May 2019"
+output: html_document
+
+---
+
+
+##  For use as validation only , do not include in report
+
+##  Was taken from the included website, and altered to show all possible models outcomes
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(dplyr)
+library(tidyr)
+library(readr)
+#sea_ice_arctic2 <- read_csv("C:/Users/dan/Desktop/RMIT 2019 sem 1/Time Series Analysis/Group/sea_ice_arctic2.csv")
+# View(sea_ice_arctic2)
+
+sea_ice <-  read.csv("sea_ice_arctic2.csv")  #sea_ice_arctic2.csv
+
+colnames(sea_ice) <- c('Year', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec')
+
+sea_ice <- sea_ice %>% gather('Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', key = 'Month', value = 'volume') %>% arrange(Year)
+
+sea_ice_ts <- ts(sea_ice$volume, start = 1985, frequency = 12)
+
+##   https://www.rdocumentation.org/packages/forecast/versions/8.7/topics/auto.arima
+
+library(forecast)
+
+x <- sea_ice_ts
+
+auto.arima(x, d = NA, D = NA, max.p = 5, max.q = 5, max.P = 2,
+           max.Q = 2, max.order = 5, max.d = 2, max.D = 1, start.p = 2,
+           start.q = 2, start.P = 1, start.Q = 1, stationary = FALSE,
+           seasonal = TRUE, ic = c("aicc", "aic", "bic"), stepwise = TRUE,
+           nmodels = 94, trace = TRUE, approximation = (length(x) > 150 |
+                                                          frequency(x) > 12), 
+           method = NULL, truncate = NULL, xreg = NULL,
+           test = c("kpss", "adf", "pp"), test.args = list(),
+           seasonal.test = c("seas", "ocsb", "hegy", "ch"),
+           seasonal.test.args = list(), allowdrift = TRUE, allowmean = TRUE,
+           lambda = NULL, biasadj = FALSE, parallel = FALSE, num.cores = 2)
+
+```
+
+

@@ -1,0 +1,654 @@
+---
+title: "TSA FINAL PROJECT"
+author: "Sean Smyth (s3704987), Daniel Enoka (s3686502) and Charles Galea (s3688570)"
+date: "21/05/2019"
+output:
+  pdf_document: default
+  html_document: default
+---
+# Source: https://sites.google.com/site/arcticseaicegraphs/
+
+# Load libraries
+```{r setup, include=FALSE}
+library(TSA)
+library(tseries)
+library(FSAdata)
+library(forecast)
+library(fUnitRoots)
+library(lmtest)
+library(dplyr)
+library(tidyr)
+library(readr)
+```
+
+# Load data set
+```{r}
+#sea_ice_arctic2 <- read_csv("sea_ice_arctic2.csv")
+# View(sea_ice_arctic2)
+
+sea_ice <-  read.csv("C:sea_ice_arctic2.csv")  #sea_ice_arctic2.csv
+
+colnames(sea_ice) <- c('Year', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec')
+
+sea_ice <- sea_ice %>% gather('Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', key = 'Month', value = 'volume') %>% arrange(Year)
+```
+
+# Convert to time series
+```{r}
+sea_ice_ts <- ts(sea_ice$volume, start = 1985, frequency = 12)
+#View(sea_ice_ts)
+#is.na(sea_ice_ts)
+```
+
+# Plot time series data
+```{r}
+plot(sea_ice_ts, type = "o", xlab = "Year", ylab = "Sea Ice Volume (1000 km3)", main = "Arctic Sea Ice")
+```
+
+## Annotated plot time series data to examine seasonality
+```{r}
+plot(sea_ice_ts, ylab='Sea Ice Volume (1000 km3)', xlab = 'Year', type = "l", main = "Arctic Sea Ice")
+points(y=sea_ice_ts,x=time(sea_ice_ts),pch=as.vector(season(sea_ice_ts)))
+```
+
+
+##From the plot of the output we know:
+
+* Seasonality is present
+* There is a downward trend (non-stationary)
+* There is no obvious change in variance
+* It is not possible to determine behaviour due to the presence of seasonality.
+
+
+# ACF and PACF plots
+```{r}
+par(mfrow=c(1,2))
+acf(sea_ice_ts, lag.max = 60, main = "ACP Plot")
+pacf(sea_ice_ts, lag.max = 60, main = "PACF Plot")
+```
+
+* Strong correlations at lags 0.5, 1.0, 1.5, and so on, which are slowly decreasing indicate the existence of a seasonal autocorrelation relationship.
+* There is also a substantial correlation that needs to be considered.
+
+* We no need to examine the time series, ACF and PACF plots of sea ice volumes after taking the first difference.
+
+# Differencing to de-trend data
+```{r}
+sea_ice_diff <- diff(sea_ice_ts)
+plot(sea_ice_diff, ylab='First Difference of Sea Ice Volume', xlab='Time', main = "Time Series Plot of the
+First Differences of Arctic Sea Ice Volumes")
+```
+
+* The first difference of the time series plot indicates that the data has now been de-trended.
+
+
+# ACP and PACF plots
+```{r}
+par(mfrow=c(1,2))
+acf(as.vector(sea_ice_diff),lag.max = 60, main="Sample ACF of First Differences of Sea Ice Volumes")
+pacf(as.vector(sea_ice_diff),lag.max = 60, main="Sample PACF of First Differences of Sea Ice Volumes")
+```
+* Although the data hase been de-trended, the seasonal pattern still remains in the time series.
+
+* Next considered seasonal differencing.
+
+# Seasonal Differencing
+
+```{r}
+sea_ice_diff2 <- diff(sea_ice_diff, lag = 12)
+plot(sea_ice_diff2,xlab='Time',ylab='First and Seasonal Difference of Sea Ice Volumes',main=
+"Time Series Plot of First and Seasonal Differences of Sea Ice Volumes")
+```
+
+# ACF and PACF plots
+```{r}
+par(mfrow=c(1,2))
+acf(as.vector(sea_ice_diff2),lag.max=36,ci.type='ma',main="Sample ACF of First
+and Seasonal Differences of Sea Ice Volumes")
+pacf(as.vector(sea_ice_diff2),lag.max=36,ci.type='ma',main="Sample PACF of First
+and Seasonal Differences of Sea Ice Volumes")
+```
+
+* After taking the seasonal difference we remove most of the seasonality in the series and very little autocorrelation remains.
+
+* There is 1 significant lag in the first part of the series (prior to the first period - lag 12)
+
+* The model suggested by this plot is D=1, d=1.
+
+* Therefore, try a ARIMA(0,1,1)x(0,1,1)~12~ model.
+
+# Fit of ARIMA(0,1,1)x(0,1,1)~12~ model
+```{r}
+m1_sea_ice = arima(sea_ice_ts,order=c(0,1,1),seasonal=list(order=c(0,1,1), period=12))
+res.m1 = residuals(m1_sea_ice);
+plot(res.m1,xlab='Time',ylab='Residuals',main="Time series plot of the residuals")
+```
+
+# ACF and PACF plots for ARIMA(0,1,1)x(0,1,1)~12~ model
+```{r}
+par(mfrow=c(1,2))
+acf(res.m1, lag.max = 36, main = "The sample ACF of the residuals")
+pacf(res.m1, lag.max = 36, main = "The sample PACF of the residuals")
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#------- Residuals Approach ----------------
+
+# Initially fit of SARIMA(0,0,0)x(0,1,0)~12~ model
+```{r}
+m1.sea_ice = arima(sea_ice_ts,order=c(0,0,0),seasonal=list(order=c(0,1,0), period=12))
+res.m1 = residuals(m1.sea_ice);
+plot(res.m1,xlab='Time',ylab='Residuals',main="Time series plot of the residuals")
+```
+
+## ACF and PACF plots of residuals for SARIMA(0,0,0)x(0,1,0)~12~ model
+```{r}
+par(mfrow=c(1,2))
+acf(res.m1, lag.max = 36, main = "The sample ACF of the residuals")
+pacf(res.m1, lag.max = 36, main = "The sample PACF of the residuals")
+```
+
+* There is now no pattern implying the existence of a seasonal trend.
+
+* However, we do observe the existence of an ordinary trend from the ACF and PACF plots of the residuals.
+
+* We will attempt to remove this ordinary trend by fitting a SARIMA(0,1,0)x(0,1,0)~12~ model.
+
+## Fit of SARIMA(0,1,0)x(0,1,0)~12~ model   <--  m2
+
+```{r}
+m2.sea_ice = arima(sea_ice_ts,order=c(0,1,0),seasonal=list(order=c(0,1,0), period=12))
+res.m2 = residuals(m2.sea_ice);
+plot(res.m2,xlab='Time',ylab='Residuals',main="Time series plot of the residuals")
+```
+
+
+## ACF and PACF plots for fit of SARIMA(0,1,0)x(0,1,0)~12~ model
+```{r}
+par(mfrow=c(1,2))
+acf(res.m2, lag.max = 36, main = "The sample ACF of the residuals")
+pacf(res.m2, lag.max = 36, main = "The sample PACF of the residuals")
+```
+
+* No evidence of an ordinary trend remaining in the residuals.
+
+* There is a decreasing pattern in lags 1, 2, 3,.... in the SARMA conponent of the PACF plot. The correation at lag 1 in the ACF plot is significant. This implies the existence of an SMA(1) component.
+
+* Now tried to fit a SARIMA(0,1,0)x(0,1,1)~12~ model to try to remove the remaining seasonal component in the residuals.
+
+
+# Fit of SARIMA(0,1,0)x(0,1,1)~12~ model.  <-- m3
+```{r}
+m3.sea_ice = arima(sea_ice_ts,order=c(0,1,0),seasonal=list(order=c(0,1,1), period=12))
+res.m3 = residuals(m3.sea_ice);
+plot(res.m3,xlab='Time',ylab='Residuals',main="Time series plot of the residuals")
+```
+
+## ACF AND PACF plots for SARIMA(0,1,0)x(0,1,1)~12~ model.
+```{r}
+par(mfrow=c(1,2))
+acf(res.m3, lag.max = 36, main = "The sample ACF of the residuals")
+pacf(res.m3, lag.max = 36, main = "The sample PACF of the residuals")
+```
+
+* The autocorrelations, especially the first seasonal lag (lag 1) in the ACF plot, become insignificant or slightly significant after adding the seasonal component.
+
+* The ACF and PACF plots can be used to determine the orders of the ARMA component since there are no highly significant correlations at lags s, 2s, 3s, 
+
+* The ACF plot displays one significant autocorrelation while the PACF plot has two significant autocorrelations. This suggests a ARMA(1,1) and ARMA(2,1) models.
+
+* We will now fit SARIMA(1,1,0)x(0,1,1)~12~, SARIMA(0,1,1)x(0,1,1)~12~ and SARIMA(1,1,1)x(0,1,1)~12~ models.
+
+
+
+# Fit of SARIMA(1,1,0)x(0,1,1)~12~ model
+```{r}
+m4.sea_ice = arima(sea_ice_ts,order=c(1,1,0),seasonal=list(order=c(0,1,1), period=12))
+res.m4 = residuals(m4.sea_ice);
+plot(res.m4,xlab='Time',ylab='Residuals',main="Time series plot of the residuals")
+```
+
+#ACF and PACF plots for SARIMA(1,1,0)x(0,1,1)~12~ model
+```{r}
+par(mfrow=c(1,2))
+acf(res.m4, lag.max = 36, main = "The sample ACF of the residuals")
+pacf(res.m4, lag.max = 36, main = "The sample PACF of the residuals")
+```
+
+
+
+# Fit of SARIMA(0,1,1)x(0,1,1)~12~ model
+```{r}
+m5.sea_ice = arima(sea_ice_ts,order=c(0,1,1),seasonal=list(order=c(0,1,1), period=12))
+res.m5 = residuals(m5.sea_ice);
+plot(res.m5,xlab='Time',ylab='Residuals',main="Time series plot of the residuals")
+```
+
+#ACF and PACF plots for SARIMA(0,1,1)x(0,1,1)~12~ model
+```{r}
+par(mfrow=c(1,2))
+acf(res.m5, lag.max = 36, main = "The sample ACF of the residuals")
+pacf(res.m5, lag.max = 36, main = "The sample PACF of the residuals")
+```
+
+
+
+
+# Fit of SARIMA(1,1,1)x(0,1,1)~12~ model
+```{r}
+m6.sea_ice = arima(sea_ice_ts,order=c(1,1,1),seasonal=list(order=c(0,1,1), period=12))
+res.m6 = residuals(m6.sea_ice);
+plot(res.m6,xlab='Time',ylab='Residuals',main="Time series plot of the residuals")
+```
+
+#ACF and PACF plots for SARIMA(1,1,1)x(0,1,1)~12~ model
+```{r}
+par(mfrow=c(1,2))
+acf(res.m6, lag.max = 36, main = "The sample ACF of the residuals")
+pacf(res.m6, lag.max = 36, main = "The sample PACF of the residuals")
+```
+
+
+* The residuals for the SARIMA(1,1,0)x(0,1,1)~12~, SARIMA(0,1,1)x(0,1,1)~12~ and SARIMA(0,1,1)x(0,1,1)~12~ models contain several significant residual autocorrelations.
+
+* Therefore, try SARIMA(0,1,2)x(0,1,1)~12~ and SARIMA(2,1,0)x(0,1,1)~12~
+
+
+# Fit of SARIMA(0,1,2)x(0,1,1)~12~ model
+```{r}
+m7.sea_ice = arima(sea_ice_ts,order=c(0,1,2),seasonal=list(order=c(0,1,1), period=12))
+res.m7 = residuals(m7.sea_ice);
+plot(res.m7,xlab='Time',ylab='Residuals',main="Time series plot of the residuals")
+```
+
+#ACF and PACF plots for SARIMA(0,1,2)x(0,1,1)~12~ model
+```{r}
+par(mfrow=c(1,2))
+acf(res.m7, lag.max = 36, main = "The sample ACF of the residuals")
+pacf(res.m7, lag.max = 36, main = "The sample PACF of the residuals")
+```
+
+# Fit of SARIMA(2,1,0)x(0,1,1)~12~ model
+```{r}
+m8.sea_ice = arima(sea_ice_ts,order=c(2,1,0),seasonal=list(order=c(0,1,1), period=12))
+res.m8 = residuals(m8.sea_ice);
+plot(res.m8,xlab='Time',ylab='Residuals',main="Time series plot of the residuals")
+```
+
+#ACF and PACF plots for SARIMA(2,1,0)x(0,1,1)~12~ model
+```{r}
+par(mfrow=c(1,2))
+acf(res.m8, lag.max = 36, main = "The sample ACF of the residuals")
+pacf(res.m8, lag.max = 36, main = "The sample PACF of the residuals")
+```
+
+
+* Therefore we can conclude that the orders are: p=0, d=1, q=1, P=0, D=1, Q=1 and s=12 for the SARIMA(p,d,q)x(P,D,Q)~s~ model.
+
+
+#------------ Model Fitting ------------
+
+# ML estimates for SARIMA(0,1,1)x(0,1,1)~12~ model
+```{r}
+m1_sea_ice_ts = arima(sea_ice_ts,order=c(0,1,1), seasonal=list(order=c(0,1,1), period=12),method = "ML")
+coeftest(m1_sea_ice_ts)
+```
+
+# Conditional Least Squares for SARIMA(0,1,1)x(0,1,1)~12~ model
+```{r}
+m1_sea_ice_CSS = arima(sea_ice_ts,order=c(0,1,1), seasonal=list(order=c(0,1,1), period=12),method ="CSS")
+coeftest(m1_sea_ice_CSS)
+```
+
+# ML estimates for SARIMA(1,1,1)x(0,1,1)~12~ model
+```{r}
+m2_sea_ice_ts = arima(sea_ice_ts,order=c(1,1,1), seasonal=list(order=c(0,1,1), period=12),method = "ML")
+coeftest(m2_sea_ice_ts)
+```
+
+# Conditional Least Squares for SARIMA(1,1,1)x(0,1,1)~12~ model
+```{r}
+m2_sea_ice_CSS = arima(sea_ice_ts,order=c(1,1,1), seasonal=list(order=c(0,1,1), period=12),method ="CSS")
+coeftest(m2_sea_ice_CSS)
+```
+
+# ML estimates for SARIMA(2,1,0)x(0,1,1)~12~ model
+```{r}
+m3_sea_ice_ts = arima(sea_ice_ts,order=c(2,1,0), seasonal=list(order=c(0,1,1), period=12),method ="ML")
+coeftest(m3_sea_ice_ts)
+```
+
+# Conditional Least Squares for SARIMA(2,1,0)x(0,1,1)~12~ model
+```{r}
+m3_sea_ice_CSS = arima(sea_ice_ts,order=c(2,1,0), seasonal=list(order=c(0,1,1), period=12),method ="CSS")
+coeftest(m3_sea_ice_CSS)
+```
+
+# ML estimates for SARIMA(2,1,1)x(0,1,1)~12~ model
+```{r}
+m4_sea_ice_ts = arima(sea_ice_ts,order=c(2,1,1), seasonal=list(order=c(0,1,1), period=12),method ="ML")
+coeftest(m4_sea_ice_ts)
+```
+
+# Conditional Least Squares for SARIMA(2,1,1)x(0,1,1)~12~ model
+```{r}
+m4_sea_ice_CSS = arima(sea_ice_ts,order=c(2,1,1), seasonal=list(order=c(0,1,1), period=12),method ="CSS")
+coeftest(m4_sea_ice_CSS)
+```
+
+
+* The ML estimates were determined to be highly significant. The AR component in the SARIMA(1,1,1)x(0,1,1)~12~ model was insignificant.
+
+
+
+#------------- Diagnostic Checking -------------
+
+# Time series plot for standardized residuals for SARIMA(0,1,1)x(0,1,1)~12~ model
+```{r}
+plot(window(rstandard(m3_sea_ice_ts),start=c(1985, 2)),
+ylab='Standardized Residuals',type='o',
+main="Residuals from the ARIMA(2,1,0)x(0,1,1))_12 Model")
+abline(h=0, col = 'red')
+```
+
+* Plot suggests no major abnormalities with this model(except around 1994) although there are several outliers around 2010 that may need to be investigated in more detail.
+
+# ACF plot of standardized residuals for SARIMA(2,1,0)x(0,1,1)~12~ model
+```{r}
+acf(as.vector(window(rstandard(m3_sea_ice_ts),start=c(1985,2))),
+lag.max=36,
+main="ACF of Residuals from the ARIMA(2,1,0)x(0,1,1)_12 Model")
+```
+
+* Besides several slightly significant autocorrelations there is no sign of violation of the independence of residuals.
+
+# Normality
+```{r}
+hist(window(rstandard(m3_sea_ice_ts),start=c(1985,2)), xlab = 'Standardized Residuals', ylab = 'Frequency', main = 'Residuals of ARIMA(2,1,0)x(0,1,1)_12 Model')
+```
+
+```{r}
+qqnorm(window(rstandard(m3_sea_ice_ts),start=c(1985,2)),main="Q-Q plot for Residuals: ARIMA(2,1,0)x(0,1,1)_12 Model")
+qqline(window(rstandard(m3_sea_ice_ts),start=c(1985,2)))
+```
+
+## Fit of SARIMA(0,1,1)x(0,1,1)~12~ model   <--  m1
+## Fit of SARIMA(0,1,0)x(0,1,0)~12~ model   <--  m2
+## Fit of SARIMA(2,1,0)x(0,1,1)~12~ model   <--  m3
+
+```{r}
+par(mfrow=c(1,2))
+qqnorm(window(rstandard(m3_sea_ice_ts),start=c(1985,2)),main="ARIMA(2,1,0)x(0,1,1)_12 Model")
+qqline(window(rstandard(m3_sea_ice_ts),start=c(1985,2)),v=-2,h=-2)
+
+qqnorm(window(rstandard(m1_sea_ice_ts),start=c(1985,2)),main="ARIMA(2,1,0)x(0,1,1)_12 Model", col="red")
+qqline(window(rstandard(m1_sea_ice_ts),start=c(1985,2)),v=2, h=2)
+```
+
+
+```{r}
+
+qqnorm(window(rstandard(m1_sea_ice_ts),start=c(1985,2)),main="Q-Q plot for Residuals: ARIMA(2,1,0)x(0,1,1)_12 Model")
+qqline(window(rstandard(m1_sea_ice_ts),start=c(1985,2)))
+
+```
+
+
+
+## We'll first fit a plain model with only the first seasonal difference with order D = 1 
+## and see if we can get rid of the seasonal trend effect by inspecting the autocorrelation 
+## structure of the residuals.
+
+```{r}
+ml.sea_ice <- arima(sea_ice_ts, order = c(0,0,0), seasonal = list(order=c(0,1,0), period=12))
+res.m1 = residuals(ml.sea_ice);  
+par(mfrow=c(1,1))
+plot(res.m1,xlab='Time',ylab='Residuals',main="Time series plot of the residuals")
+```
+
+
+```{r}
+par(mfrow=c(1,2))
+acf(res.m1, lag.max = 36, main = "The sample ACF of the residuals")
+pacf(res.m1, lag.max = 36, main = "The sample PACF of the residuals")
+```
+
+# From the time series plot, we can conclude that we got rid of the trend. 
+# Seasonal autocorrelations are seen clearly in 
+# ACF and PACF now at the lags corresponding to the periods. 
+# We have one significant correlation at the first seasonal lag in both ACF and PACF. 
+
+##----------------------------
+
+```{r}
+par(mfrow=c(1,2))
+acf(as.vector(sea_ice_ts),lag.max=36, main = "Sample ACF of Carbon Dioxide Levels")
+pacf(as.vector(sea_ice_ts),lag.max=36, main = "Sample ACF of Carbon Dioxide Levels")
+
+```
+
+```{r}
+
+m1_sea_ice = arima(sea_ice_ts,order=c(0,1,0),seasonal=list(order=c(0,1,0), period=12))
+res.m1 = residuals(m1_sea_ice);
+plot(res.m1,xlab='Time',ylab='Residuals',main="Time series plot of the residuals")
+
+```
+
+
+# Note small error at line 241 from original TSA_Final_all,  res.m5 = residuals(m4.sea_ice);
+
+
+## ---------------------------
+
+##  https://www.methodology.psu.edu/resources/aic-vs-bic/
+
+## Lowest AIC value is m7.sea_ice, SARIMA(0,1,2)x(0,1,1)~12~ model, 
+## and                 m5.sea.ice  SARIMA(0,1,1)x(0,1,1)~12~ model
+
+```{r}
+##  Sort score special from Module 6 line 175 solutions and module 7 specials
+
+sort.score <- function(x, score = c("bic", "aic")){
+  if (score == "aic"){
+    x[with(x, order(AIC)),]
+  } else if (score == "bic") {
+    x[with(x, order(BIC)),]
+  } else {
+    warning('score = "x" only accepts valid arguments ("aic","bic")')
+  }
+}
+
+sort.score(AIC(m1_sea_ice, m2.sea_ice, m3.sea_ice,m4.sea_ice, m5.sea_ice, m6.sea_ice,m7.sea_ice, m8.sea_ice), score = "aic")
+```
+
+```{r}
+library(forecast)
+sort.score(BIC(m1_sea_ice, m2.sea_ice, m3.sea_ice,m4.sea_ice, m5.sea_ice, m6.sea_ice,m7.sea_ice, m8.sea_ice), score = "bic")
+```
+
+
+
+## While AIC shows m7 to be a good model , BIC shows that m5 would most likely be a better model 
+## in that BIC is an estimate of a function of the posterior probability of a model being true
+
+```{r}
+eacf(res.m5)  ##  Looking at AR/MA for both m5 and m7
+```
+
+```{r}
+eacf(res.m7)
+```
+
+```{r}
+McLeod.Li.test(y=res.m5,main="McLeod-Li Test ")
+```
+
+```{r}
+McLeod.Li.test(y=res.m7,main="McLeod-Li Test ")
+```
+
+```{r}
+
+## From module 7 Specials 
+
+residual.analysis <- function(model, std = TRUE,start = 2, class = c("ARIMA","GARCH","ARMA-GARCH")[1]){
+  # If you have an output from arima() function use class = "ARIMA"
+  # If you have an output from garch() function use class = "GARCH"
+  # If you have an output from ugarchfit() function use class = "ARMA-GARCH"
+  library(TSA)
+  library(FitAR)
+  if (class == "ARIMA"){
+    if (std == TRUE){
+      res.model = rstandard(model)
+    }else{
+      res.model = residuals(model)
+    }
+  }else if (class == "GARCH"){
+    res.model = model$residuals[start:model$n.used]
+  }else if (class == "ARMA-GARCH"){
+      res.model = model@fit$residuals
+  }else {
+    stop("The argument 'class' must be either 'ARIMA' or 'GARCH' ")
+  }
+  par(mfrow=c(3,2))
+  plot(res.model,type='o',ylab='Standardised residuals', main="Time series plot of standardised residuals")
+  abline(h=0)
+  hist(res.model,main="Histogram of standardised residuals")
+  acf(res.model,main="ACF of standardised residuals")
+  pacf(res.model,main="PACF of standardised residuals")
+  qqnorm(res.model,main="QQ plot of standardised residuals")
+  qqline(res.model, col = 2)
+  print(shapiro.test(res.model))
+  k=0
+  LBQPlot(res.model, lag.max = 30, StartLag = k + 1, k = 0, SquaredQ = FALSE)
+}
+
+residual.analysis(model = m5.sea_ice)
+
+```
+
+```{r}
+residual.analysis(model = m7.sea_ice)
+```
+
+##  Ljung is slightly better for m7
+
+##  End here  --------------
+
+##  From here on down is ramblings  ------------------------------------------
+
+
+## Fit of SARIMA(0,1,1)x(0,1,1)~12~ model   <--  m1
+## Fit of SARIMA(0,1,0)x(0,1,0)~12~ model   <--  m2
+## Fit of SARIMA(2,1,0)x(0,1,1)~12~ model   <--  m3
+
+
+```{r}
+McLeod.Li.test(y=res.m5,main="McLeod-Li Test ")
+```
+
+```{r}
+McLeod.Li.test(y=res.m7,main="McLeod-Li Test ")
+```
+
+
+```{r}
+
+# ARIMA(0,1,3)
+model_013_css = arima(sea_ice_ts ,order=c(1,1,3),method='CSS')
+coeftest(model_013_css)
+
+model_013_ml = arima(sea_ice_ts,order=c(0,1,3),method='ML')
+coeftest(model_013_ml) 
+
+
+
+#earnings.transform = BoxCox.ar(sea_ice_ts) # The default method for fitting is MLE here
+# If do not get a smooth curve with MLE, you can change the method to least squares or Method of Moments
+SeaIce.transform = BoxCox.ar(sea_ice_ts, method = 'ols')#yule-walker 
+# earnings.transform = BoxCox.ar(earnings, method = "ols")
+# , "burg", "ols", "mle", "yw"
+
+SeaIce.transform$ci
+SeaIce.log = log(sea_ice_ts) # 0 is in the interval or you can go for mid point of the interval as well
+
+diff.earnings.log = diff(SeaIce.log,differences = 1)
+plot(diff.earnings.log,type='o',ylab='Quarterly earnings ')
+
+```
+
+
+```{r}
+
+# TS Handy: Handy Tools for Univariate Time Series Analysis
+# Author(s): Yong Kai, Wong
+# Version Number: 0.1
+# Objective: To automate repetitive processes in time series analysis
+
+## Install packages and load libraries
+pkgs <- c('TSA', 'fUnitRoots', 'forecast', 'lmtest')
+invisible(lapply(pkgs, require, character.only = T))
+
+myCandidate <- function(timeSeries, orderList,
+                        methodType = c("CSS-ML", "ML", "CSS")[1],
+                        fixedList = NULL, includeConstant = c(TRUE, FALSE)[1]){
+  
+  # timeSeries = the time series (a ts object)
+  # orderList = a list object of c(p, d, q)
+  # methodType = estimation method; default = "CSS-ML"
+  # fixedList = a list object of free/fixed coefficient
+  # includeConstant = if true, an intercept term is included in the model
+  
+  myCandidateEst <- list()
+  
+  for(i in 1:length(orderList)){
+    order <- sapply(orderList,function(x) unlist(x))[,i]
+    myCandidateEst[[i]] <- Arima(y = timeSeries, order = order, method = methodType,
+                                 include.constant = includeConstant)
+  }
+  return(myCandidateEst)
+  
+}
+
+```
+
+
+```{r}
+modelList <- list(c(2,0,1), c(0,0,2), c(0,0,0), c(0,0,1),c(1,0,0), c(1,0,1),c(0,2,0), c(2,0,1),c(2,0,0), c(3,0,0))
+modelEstimation <- myCandidate(res.m7, orderList = modelList, methodType = "ML")
+# 
+modelEstimation$IC
+#  Not useable for seasonal
+```
+
+
+
+
+
+
+
