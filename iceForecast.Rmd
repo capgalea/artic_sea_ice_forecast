@@ -44,7 +44,7 @@ library(nortest)
 
 ## Load data set
 ```{r}
-sea_ice_orig <-  read.csv("sea_ice_arctic.csv")
+sea_ice_orig <-  read.csv("data/sea_ice_arctic.csv")
 
 colnames(sea_ice_orig) <- c('Year', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec')
 
@@ -63,7 +63,7 @@ plot(sea_ice_orig_ts, type = "o", pch = 19, cex = 0.5, xlab = "Year", ylab = exp
 
 ## Load truncated data set
 ```{r}
-sea_ice_long <-  read.csv("sea_ice_arctic2.csv")
+sea_ice_long <-  read.csv("data/sea_ice_arctic2.csv")
 
 colnames(sea_ice_long) <- c('Year', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec')
 
@@ -79,7 +79,7 @@ sea_ice_long_BC <- (sea_ice_long_ts^lambda-1)/lambda
 
 
 ```{r}
-sea_ice <-  read.csv("sea_ice_arctic3.csv")
+sea_ice <-  read.csv("data/sea_ice_arctic3.csv")
 
 colnames(sea_ice) <- c('Year', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec')
 
@@ -187,7 +187,7 @@ shapiro.test(model4$residuals)
 * The histogram, Q-Q plot of standardized residuals for the Harmoic-Trend model shows a normal distribution. The Shpiro-Wilk test gave a p-value of 0.089 indicating that we can not reject the null hypothesis that the stocastic component of this model is normally distributed.
 
 ```{r}
-sea_ice2 = read.csv("sea_ice_arctic2.csv")
+sea_ice2 = read.csv("data/sea_ice_arctic2.csv")
 colnames(sea_ice2) <- c('Year','Jan', 'Feb', 'Mar', 'Apr', 'May', 'June','July','Aug', 'Sep', 'Oct' , 'Nov', 'Dec')
 sea_ice2 <- sea_ice2 %>% gather('Jan', 'Feb', 'Mar', 'Apr', 'May', 'June','July','Aug', 'Sep', 'Oct' , 'Nov', 'Dec', key = "Month", value = "volume") %>% arrange(Year)
 sea_ice_ts2 <- ts(sea_ice2$volume, start = 1, frequency = 12)
